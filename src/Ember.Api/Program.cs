@@ -1,17 +1,21 @@
 using Ember.Api.Features.Movements;
 using Ember.Api.Features.Users;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerExamplesFromAssemblyOf(typeof(CreateMovement.CommandExample));
 builder.Services.AddSwaggerGen(c =>
 {
     c.MapType<WeatherForecast>(() => new OpenApiSchema { Type = "string" });
     c.IgnoreObsoleteActions();
     c.IgnoreObsoleteProperties();
+    c.EnableAnnotations();
+    c.ExampleFilters();
 });
 builder.Services.AddCreateUser()
                 .AddCreateMovement();

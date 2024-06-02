@@ -2,8 +2,11 @@
 using FluentValidation;
 using Mapster;
 using MapsterMapper;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Reflection;
-
+using Swashbuckle.AspNetCore.Filters;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 namespace Ember.Api.Features.Movements;
 public class Movement
 {
@@ -52,7 +55,34 @@ public static class CreateMovement
                 .GreaterThan(0.01M);
         }
     }
-
+    public record Success(string Message);
+    public record Fail(string Message);
+    public class CommandExample : IMultipleExamplesProvider<Command>
+    {
+        public IEnumerable<SwaggerExample<Command>> GetExamples()
+        {
+            yield return SwaggerExample.Create("Manager", new Command(0.50M));
+            yield return SwaggerExample.Create("Employee", new Command(50.49M));
+        }
+    }
+    public class TagDescriptionsDocumentFilter : IDocumentFilter
+    {
+        public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
+        {
+            swaggerDoc.Tags = new List<OpenApiTag> {
+            new OpenApiTag { Name = "Products", Description = "Browse/manage the product catalog" },
+            new OpenApiTag { Name = "Orders", Description = "Submit orders" }
+            };
+            swaggerDoc.Components.Schemas
+                .Add("Success", new OpenApiSchema()
+            {
+                Description = "Description",
+                ReadOnly = false,
+                Type = "string",
+                Title = "Title"
+            });
+        }
+    }
     public static IServiceCollection AddCreateMovement(this IServiceCollection services)
     {
         services.AddScoped<IMovementRepository, MovementRepository>();
@@ -67,6 +97,25 @@ public static class CreateMovement
         TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
         return services;
     }
+    public static RouteHandlerBuilder AddMetaData(this RouteHandlerBuilder endpoint, string tag, string summary = null, string description = null)
+    {
+        endpoint.WithTags(tag);
+        endpoint.WithMetadata(new SwaggerOperationAttribute(summary, description))
+                .WithMetadata(new SwaggerResponseAttribute(200, "Sucess", type: typeof(Success)))
+                .WithMetadata(new SwaggerResponseAttribute(500, "Some failure", type: typeof(Fail)))
+                .WithMetadata(new SwaggerRequestExampleAttribute(typeof(Command), typeof(CommandExample)))
+                .WithMetadata(new SwaggerSchemaFilterAttribute(typeof(Command)))
+                .WithMetadata(new SwaggerParameterAttribute("Parameter"))
+                .WithMetadata(new SwaggerRequestBodyAttribute("Body"))
+                .WithMetadata(new SwaggerSchemaFilterAttribute(typeof(TagDescriptionsDocumentFilter)));
+        //endpoint.WithMetadata(new SwaggerResponseAttribute(500, type: typeof(ErrorResponseModel)))
+        //.WithMetadata(new SwaggerResponseAttribute(400, type: typeof(ErrorResponseModel)))
+        //.WithMetadata(new SwaggerResponseAttribute(404, type: typeof(ErrorResponseModel)))
+        //.WithMetadata(new SwaggerResponseAttribute(422, type: typeof(ErrorResponseModel)))
+        //.WithMetadata(new SwaggerResponseAttribute(304, type: typeof(ErrorResponseModel)));
+
+        return endpoint;
+    }
     public static IEndpointRouteBuilder MapCreateMovement(this IEndpointRouteBuilder app)
     {
         app
@@ -75,7 +124,8 @@ public static class CreateMovement
                 var userId = await handler.Handle(command, cancellationToken);
                 return Results.Created("app/users", userId);
             })
-            .AddEndpointFilter<ValidationFilter<Command>>();
+            .AddEndpointFilter<ValidationFilter<Command>>()
+            .AddMetaData("movements", "returns clients", "more description on get `Movements`");
         return app;
     }
 }
