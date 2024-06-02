@@ -2,6 +2,7 @@
 using FluentValidation;
 using Mapster;
 using MapsterMapper;
+using System.Reflection;
 
 namespace Ember.Api.Features.Movements;
 public class Movement
@@ -57,19 +58,13 @@ public static class CreateMovement
         services.AddScoped<IMovementRepository, MovementRepository>();
         services.AddScoped<IHandler, Handler>();
         services.AddScoped<IValidator<Command>, CommandValidator>();
-
-
-        var config = new TypeAdapterConfig();
-        // Or
-        // var config = TypeAdapterConfig.GlobalSettings;
-        config.NewConfig<Command, Movement>()
+        TypeAdapterConfig<Command, Movement>
+            .NewConfig()
             .Map(dest => dest.Account, src => "Conta Bancaria")
             .Map(dest => dest.Amount, src => src.Amount)
-            .Map(dest => dest.Account, src => DateTime.Now);
+            .Map(dest => dest.CreatedAt, src => DateTime.Now);
 
-        services.AddSingleton(config);
-
-        services.AddScoped<IMapper, Mapper>();
+        TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
         return services;
     }
     public static IEndpointRouteBuilder MapCreateMovement(this IEndpointRouteBuilder app)
@@ -89,16 +84,5 @@ public static class MapsterExtensions
     public static T MapTo<T>(this object obj)
     {
         return obj.Adapt<T>();
-    }
-}
-public class MyRegister : TypeAdapterConfig
-{
-    public void Register(CodeGenerationConfig config)
-    {
-        TypeAdapterConfig<CreateMovement.Command, Movement>
-            .NewConfig()
-            .Map(dest => dest.Account, src => "Conta Bancaria")
-            .Map(dest => dest.Amount, src => src.Amount)
-            .Map(dest => dest.Account, src => DateTime.Now);
     }
 }
